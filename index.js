@@ -20,8 +20,7 @@ app.use((req, res, next) => {
 // ➤ Routes
 app.use(require("./routes/status"));
 app.use(require("./routes/peers"));
-app.use('/register-client', require('./routes/register-client')); // router.post("/")
-app.use('/remove-client', require('./routes/remove-client'));     // router.delete("/")
+app.use('/client', require('./routes/client'));
 
 // ➤ HTTPS server
 const httpsOptions = {
