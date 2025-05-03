@@ -1,172 +1,183 @@
-# VPN Server API (WireGuard + HTTPS)
+# 🌐 VPN Server API (WireGuard + HTTPS)
 
-See projekt võimaldab hallata WireGuard VPN serverit API kaudu: lisada/eemaldada peer'e, vaadata staatusi, healthcheck'i ja kasutada HTTPS-i.
+WIP API to manage WireGuard VPN servers via secure HTTPS endpoints. Easily register and remove clients, generate `.conf` files, and scan-ready QR codes.
 
-## 📦 Nõuded
+---
 
-- **Ubuntu server** (20.04 või uuem)
-- **Node.js** (18+)
-- **PM2** (`npm install -g pm2`)
-- **WireGuard** (`sudo apt install wireguard`)
-- **Sertifikaadid** (Let's Encrypt või self-signed)
+## 📦 Requirements
 
-## 🚀 Paigaldusjuhend
+- Ubuntu Server (20.04 or newer)
+- Node.js (v18+)
+- PM2 (`npm install -g pm2`)
+- WireGuard (`sudo apt install wireguard`)
+- SSL Certificates (Let's Encrypt or self-signed)
 
-### 1. Klooni projekt
+---
 
-Klooni projekt ja mine vastavasse kausta:
+## 🚀 Installation Guide
 
+### 1. Clone the repository
 ```bash
 git clone https://github.com/Kennno/vpn-api.git
 cd vpn-api
-Koopia .env faili ja muuda vastavalt serveri seadistusele:
+```
 
-bash
-Copy
+### 2. Environment setup
+```bash
 cp .env.example .env
 nano .env
-Muuda järgmisi väärtusi oma serveri jaoks:
+```
+Update values like:
+- `WG_INTERFACE=wg0`
+- `WG_PUBLIC_IP=your.domain.com`
+- `WG_PORT=51820`
+- `WG_DNS=1.1.1.1`
+- `WG_SERVER_NAME=MyVPN`
+- `WG_NETWORK=10.66.66.0/24`
+- `WG_CONF_PATH=/etc/wireguard/wg0.conf`
+- `WG_CLIENT_CONF_DIR=./clients`
+- `PORT_HTTP=80`
+- `PORT_HTTPS=443`
+- `SSL_KEY_PATH=/root/vpn-api/certs/privkey.pem`
+- `SSL_CERT_PATH=/root/vpn-api/certs/fullchain.pem`
+- `WG_COUNTRY=USA` - Optional 
+- `WG_SERVER_NAME=USA-vpn` - Optional
 
-WG_PUBLIC_IP: Sisesta oma serveri avalik IP.
-
-WG_SERVER_NAME: Serveri nimi, näiteks "USA-vpn".
-
-WG_NETWORK: VPN võrgumask, nt 10.66.66.0/24.
-
-WG_COUNTRY: Serveri asukoht, nt USA.
-
-WG_CONF_PATH: Path WireGuard seadistusfaili jaoks, nt /etc/wireguard/wg0.conf.
-
-2. Paigalda sõltuvused
-Käivita järgmine käsk, et paigaldada kõik vajalikud sõltuvused:
-
-bash
-Copy
+### 3. Install dependencies
+```bash
 npm install
-3. Lisa sertifikaadid kataloogi certs/
-Kataloogis certs/ peaks olema olemas SSL sertifikaadid. Kui kasuta Let's Encrypt, loo sümboolne link, et seostada sertifikaadid õigesse kohta.
+```
 
-bash
-Copy
+### 4. Add SSL certificates
+Create the certs folder:
+```bash
 mkdir certs
+```
+#### Option A – Let's Encrypt (recommended)
+```bash
 ln -s /etc/letsencrypt/live/your.domain.com/fullchain.pem certs/fullchain.pem
 ln -s /etc/letsencrypt/live/your.domain.com/privkey.pem certs/privkey.pem
-Asenda your.domain.com oma domeeniga, kus on aktiivne SSL sertifikaat.
+```
+#### Option B – Self-signed certs
+```bash
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout certs/privkey.pem -out certs/fullchain.pem
+```
 
-4. Käivita API PM2-ga
-PM2 aitab käivitada ja hallata serverit taustal. Käivita järgmine käsk, et panna API tööle:
-
-bash
-Copy
+### 5. Start the API server
+```bash
 pm2 start index.js --name vpn-api
 pm2 save
 pm2 startup
-API töötab nüüd aadressil: https://your.domain.com
+```
 
-5. API lõpp-punktid
-GET /status – Tagastab serveri seisundi (koos koormuse ja pingi väärtustega).
+Your API is now accessible at: `https://your.domain.com`
 
-Vastus:
+---
 
-json
-Copy
+## 📡 API Endpoints
+
+### `GET /status`
+Returns system load, ping and metadata.
+```json
 {
-  "id": "USA-vpn",
-  "ip": "178.156.146.68",
-  "load": 0,
-  "ping": 19.8,
-  "country": "USA"
+  "id": "MyVPN",
+  "ip": "your.domain.com",
+  "load": 0.18,
+  "ping": 25.6,
+  "country": "YourCountry"
 }
-GET /health – Ütleb kas server on "UP" või "DOWN".
+```
 
-Vastus:
+### `GET /health`
+Returns server health status.
+```json
+{ "status": "UP" }
+```
 
-json
-Copy
-{
-  "status": "UP"
-}
-GET /peers – Kuvab aktiivsed peer'id ja nende konfiguratsioonid.
-
-Vastus:
-
-json
-Copy
+### `GET /peers`
+List current connected WireGuard peers.
+```json
 [
-  {
-    "publicKey": "FmZqcsYMYPO1cNyASpxv4UEUm41DVF2n72c+imwgzgI=",
-    "allowedIps": "10.66.66.100/32"
-  },
-  {
-    "publicKey": "kFgjwNPr9aUwDddo/h4+X+HEQf5voH3R+mu0zFhT6xw=",
-    "allowedIps": "10.66.66.101/32"
-  }
+  { "publicKey": "abc...=", "allowedIps": "10.66.66.100/32" },
+  { "publicKey": "def...=", "allowedIps": "10.66.66.101/32" }
 ]
-POST /add-peer – Lisab uue peer'i WireGuardi seadistusfaili. Parameetrid: { publicKey, ip }.
+```
 
-Näide päringust:
+### `POST /client`
+Registers a new client and returns `.conf` and QR code.
 
-json
-Copy
+#### Example:
+```bash
+curl -X POST https://your.domain.com/client \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Test Client", "email": "test@example.com"}'
+```
+
+#### Response:
+```json
 {
-  "publicKey": "aPV7wt2bLjqq6jUX5+aOzePx/i5QFV9ZPAJ5xLz36UM=",
-  "ip": "10.66.66.102"
+  "success": true,
+  "ip": "10.66.66.10",
+  "config": "[Interface]\n...",
+  "qr": "data:image/png;base64,..."
 }
-Vastus:
+```
 
-json
-Copy
-{
-  "success": true
-}
-POST /remove-peer – Eemaldab peer'i WireGuardi seadistusfailist. Parameeter: { publicKey }.
+### `DELETE /client`
+Removes the peer and deletes matching `.conf` file.
 
-Näide päringust:
+#### Example:
+```bash
+curl -X DELETE https://your.domain.com/client \
+  -H "Content-Type: application/json" \
+  -d '{"publicKey": "ABC123...="}'
+```
 
-json
-Copy
-{
-  "publicKey": "aPV7wt2bLjqq6jUX5+aOzePx/i5QFV9ZPAJ5xLz36UM="
-}
-Vastus:
+#### Response:
+```json
+{ "success": true }
+```
 
-json
-Copy
-{
-  "success": true
-}
-🛡 CORS ja turvalisus
-API-l on CORS lubatud. Kui API on avalik, siis on soovitatav lisada API võtme kontroll turvalisuse tagamiseks.
+---
 
-⚙️ Paigaldus: Üksikasjalik juhend
-Klooni projekt ja mine kausta:
+## 🔐 Security
+- HTTPS enforced by default
+- CORS enabled globally
+- Recommend to add API key auth if public-facing
 
-bash
-Copy
-git clone https://github.com/Kennno/vpn-api.git
-cd vpn-api
-Kopeeri .env.example ja muuda väärtused:
+---
 
-bash
-Copy
-cp .env.example .env
-nano .env
-Paigalda vajalikud sõltuvused:
+## ⚙️ WireGuard Setup Notes
 
-bash
-Copy
-npm install
-Lisa SSL sertifikaadid: Kui kasutad Let's Encrypt sertifikaate, loo sümboolsed lingid järgmiselt:
+### Enable IPv4 forwarding
+In `/etc/sysctl.conf`, ensure:
+```
+net.ipv4.ip_forward=1
+```
+Then apply:
+```bash
+sudo sysctl -p
+```
 
-bash
-Copy
-ln -s /etc/letsencrypt/live/your.domain.com/fullchain.pem certs/fullchain.pem
-ln -s /etc/letsencrypt/live/your.domain.com/privkey.pem certs/privkey.pem
-Käivita API taustal PM2 abil:
+### Example `/etc/wireguard/wg0.conf`
+```ini
+[Interface]
+Address = 10.66.66.1/24
+PrivateKey = <server_private_key>
+ListenPort = 51820
+SaveConfig = true
 
-bash
-Copy
-pm2 start index.js --name vpn-api
-pm2 save
-pm2 startup
-API töötab nüüd aadressil https://your.domain.com.
+PostUp = iptables -t nat -A POSTROUTING -s 10.66.66.0/24 -o eth0 -j MASQUERADE; \
+         iptables -A FORWARD -i wg0 -j ACCEPT; \
+         iptables -A FORWARD -o wg0 -j ACCEPT
+
+PostDown = iptables -t nat -D POSTROUTING -s 10.66.66.0/24 -o eth0 -j MASQUERADE; \
+           iptables -D FORWARD -i wg0 -j ACCEPT; \
+           iptables -D FORWARD -o wg0 -j ACCEPT
+```
+
+---
+
+## Created and maintained by:
+[Kennno](https://github.com/Kennno)
