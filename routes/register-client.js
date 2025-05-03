@@ -8,7 +8,7 @@ const config = require("../config");
 
 const router = express.Router();
 
-router.post("/register-client", async (req, res) => {
+router.post("/", async (req, res) => {
   const { name = "Unnamed", email = "", telegram = "" } = req.body;
 
   // 1️⃣ IP aadress valitakse automaatselt
@@ -30,6 +30,7 @@ router.post("/register-client", async (req, res) => {
 # Email: ${email}
 # Telegram: ${telegram}
 # Date created: ${timestamp}
+# ClientPublicKey: ${clientPublicKey}
 
 [Interface]
 PrivateKey = ${clientPrivateKey}
