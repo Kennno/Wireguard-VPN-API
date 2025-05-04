@@ -20,7 +20,8 @@ app.use((req, res, next) => {
 // ➤ Routes
 app.use(require("./routes/status"));
 app.use(require("./routes/peers"));
-app.use('/client', require('./routes/client'));
+app.use("/client", require("./routes/client"));
+app.use("/usage", require("./routes/usage")); // <- SEE ON SINU UUS ROUTE
 
 // ➤ HTTPS server
 const httpsOptions = {
