@@ -10,11 +10,20 @@ WIP API to manage WireGuard VPN servers via secure HTTPS endpoints. Easily regis
 - Node.js (v18+)
 - PM2 (`npm install -g pm2`)
 - WireGuard (`sudo apt install wireguard`)
+- npm (`sudo apt install npm`)
 - SSL Certificates (Let's Encrypt or self-signed)
 
 ---
 
 ## 🚀 Installation Guide
+
+### Before installation 
+```bash
+sudo apt install && sudo apt upgrade
+npm install -g pm2
+sudo apt install wireguard
+sudo apt install npm
+```
 
 ### 1. Clone the repository
 ```bash
@@ -45,6 +54,7 @@ Update values like:
 
 ### 3. Install dependencies
 ```bash
+sudo apt install npm
 npm install
 ```
 
