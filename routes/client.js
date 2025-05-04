@@ -63,11 +63,17 @@ PersistentKeepalive = 25
     console.error("wg syncconf error:", err.message);
   }
 
-  // Save client config
-  const filename = name.toLowerCase().replace(/\s+/g, "_") + ".conf";
-  const clientPath = path.join(config.wgClientConfDir, filename);
-  fs.writeFileSync(clientPath, clientConfig);
+// Save client config
+const filename = name.toLowerCase().replace(/\s+/g, "_") + ".conf";
+const clientDir = config.wgClientConfDir;
+const clientPath = path.join(clientDir, filename);
 
+// Ensure the directory exists
+if (!fs.existsSync(clientDir)) {
+  fs.mkdirSync(clientDir, { recursive: true });
+}
+
+fs.writeFileSync(clientPath, clientConfig);
   const qr = await QRCode.toDataURL(clientConfig);
 
   res.json({ success: true, ip, config: clientConfig, qr });

@@ -7,6 +7,9 @@ Loo `.gitignore`
 
 ```gitignore
 .env
+node_modules/
+certs/
+clients/
 server.crt
 server.key
-node_modules/
+/etc/wireguard/wg0.conf
