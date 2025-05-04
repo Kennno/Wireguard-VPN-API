@@ -1,24 +1,30 @@
 const fs = require('fs');
-const path = require('path');
 require('dotenv').config();
 
 const configPath = process.env.WG_CONF_PATH || '/etc/wireguard/wg0.conf';
-const privateKey = fs.readFileSync('/etc/wireguard/server_private.key', 'utf8').trim();
+const network = process.env.WG_NETWORK || '10.66.66.0/24';
+const serverIp = network.replace(/0\/24$/, '1/24');
+const port = process.env.WG_PORT || 51820;
+const iface = process.env.WG_INTERFACE || 'wg0';
+const externalInterface = 'eth0';
 
-const interfaceBlock = `[Interface]
-Address = ${process.env.WG_NETWORK.replace('.0/24', '.1/24')}
-PrivateKey = ${privateKey}
-ListenPort = ${process.env.WG_PORT || 51820}
-SaveConfig = true
+let privateKey;
+try {
+  privateKey = fs.readFileSync('/etc/wireguard/server_private.key', 'utf8').trim();
+} catch (err) {
+  console.error('❌ Cannot read server_private.key. Make sure it exists.');
+  process.exit(1);
+}
 
-PostUp = iptables -t nat -A POSTROUTING -s ${process.env.WG_NETWORK} -o eth0 -j MASQUERADE; \\
-         iptables -A FORWARD -i wg0 -j ACCEPT; \\
-         iptables -A FORWARD -o wg0 -j ACCEPT
+const config = [
+  '[Interface]',
+  `Address = ${serverIp}`,
+  `PrivateKey = ${privateKey}`,
+  `ListenPort = ${port}`,
+  'SaveConfig = true',
+  `PostUp = iptables -t nat -A POSTROUTING -s ${network} -o ${externalInterface} -j MASQUERADE; iptables -A FORWARD -i ${iface} -j ACCEPT; iptables -A FORWARD -o ${iface} -j ACCEPT`,
+  `PostDown = iptables -t nat -D POSTROUTING -s ${network} -o ${externalInterface} -j MASQUERADE; iptables -D FORWARD -i ${iface} -j ACCEPT; iptables -D FORWARD -o ${iface} -j ACCEPT`
+].join('\n');
 
-PostDown = iptables -t nat -D POSTROUTING -s ${process.env.WG_NETWORK} -o eth0 -j MASQUERADE; \\
-           iptables -D FORWARD -i wg0 -j ACCEPT; \\
-           iptables -D FORWARD -o wg0 -j ACCEPT
-`;
-
-fs.writeFileSync(configPath, interfaceBlock);
-console.log(`✅ WireGuard config written to ${configPath}`);
+fs.writeFileSync(configPath, config + '\n');
+console.log(`✅ Generated clean WireGuard config at: ${configPath}`);
