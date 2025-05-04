@@ -9,6 +9,10 @@ WGPORT=${WGPORT:-51820}
 echo "📦 Installing dependencies..."
 sudo apt update && sudo apt install -y curl snapd wireguard git
 
+echo "📦Enabling IPv4 forwarding..."
+grep -q '^net.ipv4.ip_forward=1' /etc/sysctl.conf || echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.conf
+sudo sysctl -p
+
 echo "📦 Installing Node.js and PM2..."
 curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 sudo apt install -y nodejs
