@@ -58,4 +58,9 @@ echo "🚀 Starting WireGuard..."
 sudo systemctl enable wg-quick@wg0
 sudo wg-quick up wg0
 
+echo "🚀 Starting VPN API with PM2..."
+pm2 start index.js --name vpn-api
+pm2 save
+pm2 startup
+
 echo "✅ VPN API setup complete. Access at: https://$DOMAIN"
