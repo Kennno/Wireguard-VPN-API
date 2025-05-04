@@ -56,7 +56,13 @@ Update values like:
 ```bash
 npm install
 ```
-
+### 4. Generate server_private.key and server_public.key. (chmod is for access restriction - optional but recommended)
+```bash
+umask 077
+wg genkey | tee /etc/wireguard/server_private.key
+cat /etc/wireguard/server_private.key | wg pubkey > /etc/wireguard/server_public.key
+chmod 600 /etc/wireguard/server_private.key
+```
 ### 4. Add SSL certificates
 Create the certs folder:
 ```bash
