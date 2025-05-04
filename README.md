@@ -144,6 +144,13 @@ npm run generate:wgconf
 
 This creates a properly formatted WireGuard configuration file at `/etc/wireguard/wg0.conf`.
 
+### Enable IPv4 Forwarding (required for routing)
+
+```bash
+echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.conf
+sudo sysctl -p
+```
+
 ### 11. Start WireGuard
 
 ```bash
