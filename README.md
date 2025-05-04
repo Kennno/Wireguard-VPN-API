@@ -1,99 +1,174 @@
-# 🌐 VPN Server API (WireGuard + HTTPS)
+# VPN Server API (WireGuard + HTTPS)
 
-WIP API to manage WireGuard VPN servers via secure HTTPS endpoints. Easily register and remove clients, generate `.conf` files, and scan-ready QR codes.
-
----
-
-## 📦 Requirements
-
-- Ubuntu Server (20.04 or newer)
-- Node.js (v18+)
-- PM2 (`npm install -g pm2`)
-- WireGuard (`sudo apt install wireguard`)
-- npm (`sudo apt install npm`)
-- SSL Certificates (Let's Encrypt or self-signed)
+An API to manage WireGuard VPN servers via secure HTTPS endpoints. Easily register and remove clients, generate `.conf` files, and scan-ready QR codes.
 
 ---
 
-## 🚀 Installation Guide
+## Requirements
 
-### Before installation 
+* Ubuntu Server (20.04 or newer)
+* Git
+* Node.js (v18+)
+* npm (Node Package Manager)
+* PM2 (`npm install -g pm2`)
+* WireGuard (`sudo apt install wireguard`)
+* Certbot (for Let's Encrypt SSL)
+* SSL Certificates (Let's Encrypt or self-signed)
+
+---
+
+## Automated Setup (recommended)
+
+1. Make sure `git` is installed (on fresh Ubuntu):
+
 ```bash
-sudo apt install && sudo apt update
-sudo apt install wireguard
-sudo apt install npm
-npm install -g pm2
+sudo apt update && sudo apt install -y git
 ```
 
-### 1. Clone the repository
+2. Clone the repository:
+
 ```bash
 git clone https://github.com/Kennno/vpn-api.git
 cd vpn-api
 ```
 
-### 2. Environment setup
+3. Make the setup script executable and run it:
+
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+
+The script will:
+
+* Ask for your domain or IP address
+* Install all dependencies (Node.js, WireGuard, Certbot, etc.)
+* Request an SSL certificate from Let's Encrypt
+* Generate WireGuard server keys
+* Write a `.env` file
+* Create `wg0.conf`
+* Enable and bring up the WireGuard interface
+* Start the API using PM2
+
+After completion, your API will be running at `https://your.domain.com`.
+
+---
+
+## Manual Setup
+
+### 1. System preparation
+
+```bash
+sudo apt update && sudo apt upgrade -y
+sudo apt install snapd curl git wireguard -y
+```
+
+### 2. Install Node.js and PM2
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt install -y nodejs
+npm install -g pm2
+```
+
+### 3. Install Certbot (Let's Encrypt)
+
+```bash
+sudo snap install core && sudo snap refresh core
+sudo snap install --classic certbot
+sudo ln -s /snap/bin/certbot /usr/bin/certbot
+```
+
+### 4. Obtain SSL certificates
+
+```bash
+sudo certbot certonly --standalone -d your.domain.com
+```
+
+### 5. Clone the repository
+
+```bash
+git clone https://github.com/Kennno/vpn-api.git
+cd vpn-api
+```
+
+### 6. Create and edit .env file
+
 ```bash
 cp .env.example .env
 nano .env
 ```
-Update values like:
-- `WG_INTERFACE=wg0`
-- `WG_PUBLIC_IP=your.domain.com`
-- `WG_PORT=51820`
-- `WG_DNS=1.1.1.1`
-- `WG_SERVER_NAME=MyVPN`
-- `WG_NETWORK=10.66.66.0/24`
-- `WG_CONF_PATH=/etc/wireguard/wg0.conf`
-- `WG_CLIENT_CONF_DIR=./clients`
-- `PORT_HTTP=80`
-- `PORT_HTTPS=443`
-- `SSL_KEY_PATH=/root/vpn-api/certs/privkey.pem`
-- `SSL_CERT_PATH=/root/vpn-api/certs/fullchain.pem`
-- `WG_COUNTRY=USA` - Optional 
-- `WG_SERVER_NAME=USA-vpn` - Optional
 
-### 3. Install dependencies
+Update values such as:
+
+* `WG_INTERFACE=wg0`
+* `WG_PUBLIC_IP=your.domain.com`
+* `WG_PORT=51820`
+* `WG_DNS=1.1.1.1`
+* `WG_SERVER_NAME=MyVPN`
+* `WG_NETWORK=10.66.66.0/24`
+* `WG_CONF_PATH=/etc/wireguard/wg0.conf`
+* `WG_CLIENT_CONF_DIR=./clients`
+* `PORT_HTTP=80`
+* `PORT_HTTPS=443`
+* `SSL_KEY_PATH=$(pwd)/certs/privkey.pem`
+* `SSL_CERT_PATH=$(pwd)/certs/fullchain.pem`
+
+### 7. Install dependencies
+
 ```bash
 npm install
 ```
-### 4. Generate server_private.key and server_public.key. (chmod is for access restriction - optional but recommended)
+
+### 8. Generate WireGuard server keys
+
 ```bash
 umask 077
-wg genkey | tee /etc/wireguard/server_private.key
-cat /etc/wireguard/server_private.key | wg pubkey > /etc/wireguard/server_public.key
+wg genkey | tee /etc/wireguard/server_private.key | wg pubkey > /etc/wireguard/server_public.key
 chmod 600 /etc/wireguard/server_private.key
 ```
-### 4. Add SSL certificates
-Create the certs folder:
+
+### 9. Create SSL symlinks
+
 ```bash
-mkdir certs
-```
-#### Option A – Let's Encrypt (recommended)
-```bash
-ln -s /etc/letsencrypt/live/your.domain.com/fullchain.pem certs/fullchain.pem
-ln -s /etc/letsencrypt/live/your.domain.com/privkey.pem certs/privkey.pem
-```
-#### Option B – Self-signed certs
-```bash
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-  -keyout certs/privkey.pem -out certs/fullchain.pem
+mkdir -p certs
+ln -sf /etc/letsencrypt/live/your.domain.com/privkey.pem certs/privkey.pem
+ln -sf /etc/letsencrypt/live/your.domain.com/fullchain.pem certs/fullchain.pem
 ```
 
-### 5. Start the API server
+### 10. Generate wg0.conf
+
+```bash
+npm run generate:wgconf
+```
+
+This creates a properly formatted WireGuard configuration file at `/etc/wireguard/wg0.conf`.
+
+### 11. Start WireGuard
+
+```bash
+sudo systemctl enable wg-quick@wg0
+sudo wg-quick up wg0
+```
+
+### 12. Start the API
+
 ```bash
 pm2 start index.js --name vpn-api
 pm2 save
 pm2 startup
 ```
 
-Your API is now accessible at: `https://your.domain.com`
+Your API is now accessible at `https://your.domain.com`.
 
 ---
 
-## 📡 API Endpoints
+## API Endpoints
 
-### `GET /status`
-Returns system load, ping and metadata.
+### GET /status
+
+Returns system load, ping, and metadata.
+
 ```json
 {
   "id": "MyVPN",
@@ -104,14 +179,18 @@ Returns system load, ping and metadata.
 }
 ```
 
-### `GET /health`
+### GET /health
+
 Returns server health status.
+
 ```json
 { "status": "UP" }
 ```
 
-### `GET /peers`
+### GET /peers
+
 List current connected WireGuard peers.
+
 ```json
 [
   { "publicKey": "abc...=", "allowedIps": "10.66.66.100/32" },
@@ -119,63 +198,68 @@ List current connected WireGuard peers.
 ]
 ```
 
-### `POST /client`
+### POST /client
+
 Registers a new client and returns `.conf` and QR code.
 
-#### Example:
 ```bash
 curl -X POST https://your.domain.com/client \
   -H "Content-Type: application/json" \
   -d '{"name": "Test Client", "email": "test@example.com"}'
 ```
 
-#### Response:
 ```json
 {
   "success": true,
   "ip": "10.66.66.10",
-  "config": "[Interface]\n...",
+  "config": "[Interface]
+...",
   "qr": "data:image/png;base64,..."
 }
 ```
 
-### `DELETE /client`
+### DELETE /client
+
 Removes the peer and deletes matching `.conf` file.
 
-#### Example:
 ```bash
 curl -X DELETE https://your.domain.com/client \
   -H "Content-Type: application/json" \
   -d '{"publicKey": "ABC123...="}'
 ```
 
-#### Response:
 ```json
 { "success": true }
 ```
 
 ---
 
-## 🔐 Security
-- HTTPS enforced by default
-- CORS enabled globally
-- Recommend to add API key auth if public-facing
+## Security
+
+* HTTPS enforced by default
+* CORS enabled globally
+* Recommend adding API key auth if public-facing
 
 ---
 
-## ⚙️ WireGuard Setup Notes
+## WireGuard Setup Notes
 
 ### Enable IPv4 forwarding
-In `/etc/sysctl.conf`, ensure:
+
+Edit `/etc/sysctl.conf`:
+
 ```
 net.ipv4.ip_forward=1
 ```
-Then apply:
+
+Apply the setting:
+
 ```bash
 sudo sysctl -p
 ```
 
 ### Example `/etc/wireguard/wg0.conf`
+
 ```ini
 [Interface]
 Address = 10.66.66.1/24
@@ -183,16 +267,12 @@ PrivateKey = <server_private_key>
 ListenPort = 51820
 SaveConfig = true
 
-PostUp = iptables -t nat -A POSTROUTING -s 10.66.66.0/24 -o eth0 -j MASQUERADE; \
-         iptables -A FORWARD -i wg0 -j ACCEPT; \
-         iptables -A FORWARD -o wg0 -j ACCEPT
-
-PostDown = iptables -t nat -D POSTROUTING -s 10.66.66.0/24 -o eth0 -j MASQUERADE; \
-           iptables -D FORWARD -i wg0 -j ACCEPT; \
-           iptables -D FORWARD -o wg0 -j ACCEPT
+PostUp = iptables -t nat -A POSTROUTING -s 10.66.66.0/24 -o eth0 -j MASQUERADE; iptables -A FORWARD -i wg0 -j ACCEPT; iptables -A FORWARD -o wg0 -j ACCEPT
+PostDown = iptables -t nat -D POSTROUTING -s 10.66.66.0/24 -o eth0 -j MASQUERADE; iptables -D FORWARD -i wg0 -j ACCEPT; iptables -D FORWARD -o wg0 -j ACCEPT
 ```
 
 ---
 
-## Created and maintained by:
-[Kennno](https://github.com/Kennno)
+## Created and maintained by
+
+[Kenno](https://github.com/Kennno)
