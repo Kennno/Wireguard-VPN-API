@@ -54,7 +54,6 @@ Update values like:
 
 ### 3. Install dependencies
 ```bash
-sudo apt install npm
 npm install
 ```
 
